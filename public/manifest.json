@@ -1,14 +1,12 @@
 {
   "manifest_version": 3,
   "name": "Trail — Browsing Insights",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "See how you spend your time on the web. Tracks visit counts and time spent per site, with search and insights. All data stays local.",
   "permissions": [
     "tabs",
     "storage",
-    "idle",
-    "history",
-    "unlimitedStorage"
+    "idle"
   ],
   "background": {
     "service_worker": "src/background/index.ts",
