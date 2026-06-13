@@ -19,6 +19,11 @@ export default defineConfig({
     strictPort: true,
     hmr: {
       port: 5173
+    },
+    cors: {
+      origin: '*',
+      methods: ['GET', 'HEAD', 'OPTIONS'],
+      allowedHeaders: ['Content-Type', 'Authorization']
     }
   }
 })

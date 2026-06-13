@@ -1,10 +1,13 @@
-import type { Visit, DomainMeta, Settings, CurrentSession } from './types'
+import type { Visit, DomainMeta, Settings, CurrentSession, SavedText, TextCategory } from './types'
+import { OTHER_CATEGORY } from './types'
 
 const KEYS = {
   visits: 'visits',
   domainMeta: 'domainMeta',
   settings: 'settings',
-  currentSession: 'currentSession'
+  currentSession: 'currentSession',
+  savedTexts: 'savedTexts',
+  textCategories: 'textCategories'
 } as const
 
 const DEFAULT_SETTINGS: Settings = {
@@ -109,4 +112,57 @@ export async function importData(json: string): Promise<void> {
   if (data.visits) await chrome.storage.local.set({ [KEYS.visits]: data.visits })
   if (data.meta) await chrome.storage.local.set({ [KEYS.domainMeta]: data.meta })
   if (data.settings) await chrome.storage.local.set({ [KEYS.settings]: data.settings })
+}
+
+export async function getSavedTexts(): Promise<SavedText[]> {
+  const result = await chrome.storage.local.get(KEYS.savedTexts)
+  return (result[KEYS.savedTexts] as SavedText[]) || []
+}
+
+export async function saveText(item: SavedText): Promise<void> {
+  const items = await getSavedTexts()
+  items.unshift(item)
+  await chrome.storage.local.set({ [KEYS.savedTexts]: items })
+}
+
+export async function deleteSavedText(id: string): Promise<void> {
+  const items = await getSavedTexts()
+  await chrome.storage.local.set({
+    [KEYS.savedTexts]: items.filter(i => i.id !== id)
+  })
+}
+
+export async function clearSavedTexts(): Promise<void> {
+  await chrome.storage.local.set({ [KEYS.savedTexts]: [] })
+}
+
+export async function getCategories(): Promise<TextCategory[]> {
+  const result = await chrome.storage.local.get(KEYS.textCategories)
+  const stored = (result[KEYS.textCategories] as TextCategory[]) || []
+  // Always ensure "Other" is last
+  const withoutOther = stored.filter(c => c.id !== OTHER_CATEGORY.id)
+  return [...withoutOther, OTHER_CATEGORY]
+}
+
+export async function addCategory(name: string): Promise<TextCategory> {
+  const current = await getCategories()
+  const withoutOther = current.filter(c => c.id !== OTHER_CATEGORY.id)
+  const cat: TextCategory = {
+    id: `cat-${Date.now()}`,
+    name: name.trim(),
+    createdAt: Date.now()
+  }
+  await chrome.storage.local.set({ [KEYS.textCategories]: [...withoutOther, cat] })
+  return cat
+}
+
+export async function deleteCategory(id: string): Promise<void> {
+  if (id === OTHER_CATEGORY.id) return
+  const current = await getCategories()
+  const updated = current.filter(c => c.id !== id && c.id !== OTHER_CATEGORY.id)
+  await chrome.storage.local.set({ [KEYS.textCategories]: updated })
+  // Move orphaned texts to "Other"
+  const texts = await getSavedTexts()
+  const reassigned = texts.map(t => t.categoryId === id ? { ...t, categoryId: OTHER_CATEGORY.id } : t)
+  await chrome.storage.local.set({ [KEYS.savedTexts]: reassigned })
 }

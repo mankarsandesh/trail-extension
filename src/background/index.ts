@@ -2,9 +2,11 @@ import {
   saveVisit,
   getSettings,
   getCurrentSession,
-  setCurrentSession
+  setCurrentSession,
+  saveText,
+  getCategories
 } from '../lib/storage'
-import type { Visit, CurrentSession } from '../lib/types'
+import type { Visit, CurrentSession, SavedText } from '../lib/types'
 
 const MIN_DURATION_MS = 1500
 
@@ -128,15 +130,32 @@ chrome.idle.onStateChanged.addListener(async state => {
   }
 })
 
+async function buildContextMenu(): Promise<void> {
+  chrome.contextMenus.removeAll()
+  const categories = await getCategories()
+
+  chrome.contextMenus.create({
+    id: 'trail-save-parent',
+    title: 'Save to Trail',
+    contexts: ['selection']
+  })
+
+  for (const cat of categories) {
+    chrome.contextMenus.create({
+      id: `trail-cat-${cat.id}`,
+      parentId: 'trail-save-parent',
+      title: cat.name,
+      contexts: ['selection']
+    })
+  }
+}
+
 chrome.runtime.onInstalled.addListener(async () => {
   await getSettings() // ensure defaults are initialised
+  await buildContextMenu()
 
-  // Start tracking the currently active tab on install / update
   try {
-    const tabs = await chrome.tabs.query({
-      active: true,
-      currentWindow: true
-    })
+    const tabs = await chrome.tabs.query({ active: true, currentWindow: true })
     if (tabs.length > 0) await startSession(tabs[0])
   } catch {
     // ignore
@@ -144,24 +163,47 @@ chrome.runtime.onInstalled.addListener(async () => {
 })
 
 chrome.runtime.onStartup.addListener(async () => {
+  await buildContextMenu()
   try {
-    const tabs = await chrome.tabs.query({
-      active: true,
-      currentWindow: true
-    })
+    const tabs = await chrome.tabs.query({ active: true, currentWindow: true })
     if (tabs.length > 0) await startSession(tabs[0])
   } catch {
     // ignore
   }
 })
 
-// Optional: open dashboard with keyboard shortcut handler
+chrome.contextMenus.onClicked.addListener(async (info, tab) => {
+  const menuId = info.menuItemId as string
+  if (!menuId.startsWith('trail-cat-')) return
+  if (!info.selectionText?.trim()) return
+
+  const categoryId = menuId.replace('trail-cat-', '')
+  const url = tab?.url || ''
+  const domain = getDomain(url) || url
+
+  const item: SavedText = {
+    id: `saved-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+    text: info.selectionText.trim(),
+    url,
+    domain,
+    title: tab?.title || domain,
+    savedAt: Date.now(),
+    categoryId
+  }
+
+  await saveText(item)
+})
+
 chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
   if (message?.type === 'OPEN_DASHBOARD') {
     chrome.tabs.create({
       url: chrome.runtime.getURL('src/dashboard/index.html')
     })
     sendResponse({ ok: true })
+  }
+  if (message?.type === 'REBUILD_CONTEXT_MENU') {
+    buildContextMenu().then(() => sendResponse({ ok: true }))
+    return true
   }
   return true
 })

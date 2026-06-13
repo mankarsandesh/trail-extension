@@ -5,8 +5,9 @@ import { StatsOverview } from './components/StatsOverview'
 import { HistoryView } from './components/HistoryView'
 import { SitesView } from './components/SitesView'
 import { SettingsView } from './components/SettingsView'
+import { SavedView } from './components/SavedView'
 
-type Tab = 'overview' | 'history' | 'sites' | 'settings'
+type Tab = 'overview' | 'history' | 'sites' | 'saved' | 'settings'
 
 export function Dashboard() {
   const [visits, setVisits] = useState<Visit[]>([])
@@ -29,6 +30,7 @@ export function Dashboard() {
       { id: 'overview', label: 'Overview' },
       { id: 'history', label: 'History' },
       { id: 'sites', label: 'Sites' },
+      { id: 'saved', label: 'Saved' },
       { id: 'settings', label: 'Settings' }
     ],
     []
@@ -70,14 +72,20 @@ export function Dashboard() {
           <div className="flex items-center justify-center py-20">
             <div className="text-gray-400">Loading your data…</div>
           </div>
-        ) : visits.length === 0 ? (
-          <EmptyState />
         ) : (
           <>
-            {tab === 'overview' && <StatsOverview visits={visits} />}
-            {tab === 'history' && <HistoryView visits={visits} />}
-            {tab === 'sites' && <SitesView visits={visits} />}
-            {tab === 'settings' && <SettingsView onChange={loadData} />}
+            {tab === 'saved' ? (
+              <SavedView />
+            ) : visits.length === 0 ? (
+              <EmptyState />
+            ) : (
+              <>
+                {tab === 'overview' && <StatsOverview visits={visits} />}
+                {tab === 'history' && <HistoryView visits={visits} />}
+                {tab === 'sites' && <SitesView visits={visits} />}
+                {tab === 'settings' && <SettingsView onChange={loadData} />}
+              </>
+            )}
           </>
         )}
       </main>

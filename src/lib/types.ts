@@ -44,3 +44,25 @@ export interface DailyPoint {
   time: number
   visits: number
 }
+
+export interface TextCategory {
+  id: string
+  name: string
+  createdAt: number
+}
+
+export const OTHER_CATEGORY: TextCategory = {
+  id: 'other',
+  name: 'Other',
+  createdAt: 0
+}
+
+export interface SavedText {
+  id: string
+  text: string
+  url: string
+  domain: string
+  title: string
+  savedAt: number
+  categoryId: string
+}
